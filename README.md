@@ -45,6 +45,34 @@ Resolves via [`kotoba-lang/occupation`](https://github.com/kotoba-lang/occupatio
 See [`docs/business-model.md`](docs/business-model.md) and
 [`docs/operator-guide.md`](docs/operator-guide.md).
 
+## Reference implementation
+
+`src/electrical_practice/{store,governor}.cljc` is a minimal but real
+implementation of the Core Contract above (pure cljc, no external deps):
+
+- `electrical-practice.store` — `Store` protocol + `MemStore`:
+  registered jobs (with an `is-live-work?` flag), circuit tests, permits.
+  A test/permit can only be recorded against a registered job (job
+  provenance).
+- `electrical-practice.governor` — `ElectricalPracticeGovernor`: `assess`
+  gates a proposal against the job env. Hard invariants force `:hold`
+  (no job, direct-write instead of `:propose`, or any proposal on a
+  live-work job below `:high` safety-class); any proposal on a
+  `is-live-work?` job always requires `:high`+ safety-class and thus
+  `:human-approval` — it can never be auto-approved; low-confidence
+  proposals also escalate.
+
+```bash
+clojure -M:test   # 7 tests, 12 assertions, green
+```
+
+This is what backs this repo's `:maturity :implemented` entry in
+[`kotoba-lang/occupation`](https://github.com/kotoba-lang/occupation) —
+the 20th `cloud-itonami-isco-*` occupation to reach that tier, after
+`cloud-itonami-isco-6112`, `-2221`, `-7126`, `-4321`, `-9312`, `-5322`,
+`-8332`, `-1321`, `-3253`, `-6210`, `-5223`, `-7231`, `-8121`, `-9111`,
+`-2512`, `-1120`, `-4110`, `-3213` and `-5153` (ADR-2607012000).
+
 ## License
 
 AGPL-3.0-or-later.
