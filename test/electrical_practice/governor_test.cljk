@@ -1,5 +1,5 @@
 (ns electrical-practice.governor-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [electrical-practice.store :as store]
             [electrical-practice.governor :as governor]))
 
