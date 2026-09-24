@@ -1,0 +1,44 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:physics` runs it.
+;;
+;; README "Robotics premise": a wiring-inspection robot performs panel
+;; scanning, continuity testing and thermal-imaging checks for building
+;; electricians (ISCO 7411). Its physical work: carrying cable reels and test
+;; gear to the job, positioning the thermal camera/test probe on the panel,
+;; and the thing its thermal imaging looks for -- a terminal heating up from a
+;; loose or overloaded connection.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isco-7411"
+ :cases
+ [{:id :cable-reels-to-riser
+   :kind :transport
+   :procedure "carrier robot takes cable reels and test gear from the site store to the riser cupboard"
+   :params {:mass-kg 70.0 :distance-m 40.0 :v-max-mps 1.0 :a-max-mps2 0.5
+            :brake-decel-mps2 0.8 :drive-force-n 180.0 :crr 0.02
+            :cog-height-m 0.50 :support-half-length-m 0.30 :max-time-s 1200.0}
+   :sweep {:param :payload-kg :values [20.0 50.0 100.0 200.0 350.0]}
+   :quantity :cycle-time-s
+   :limit {:max 50.0 :basis "estimate: one store-to-riser leg on a building site floor"}
+   :boundary {:lo 10.0 :hi 1500.0}}
+  {:id :camera-probe-to-panel
+   :kind :manipulator
+   :procedure "arm raises the thermal camera and continuity probe from its tray to the top row of breakers in the panel"
+   :params {:l1-m 0.45 :l2-m 0.40 :m1-kg 3.5 :m2-kg 2.5
+            :from [0.40 0.10] :to [0.45 0.70] :duration-s 1.5 :steps 500}
+   :sweep {:param :payload-kg :values [0.5 1.0 1.5 2.5 4.0]}
+   :quantity :peak-tau1-nm
+   :limit {:max 60.0 :basis "estimate: continuous shoulder torque of a light collaborative arm (~5 kg class)"}
+   :boundary {:lo 0.1 :hi 20.0}}
+  {:id :terminal-hotspot
+   :kind :thermal
+   :procedure "a terminal block (10 mm phenolic) with a loose connection dissipating heat inside a 30 C panel, as the thermal camera sees its face after an hour"
+   :params {:thickness-m 0.01 :conductivity-w-mk 0.30 :density-kg-m3 1400.0 :specific-heat-j-kgk 1200.0
+            :t0-c 30.0 :t-hot-c 30.0 :h-front-w-m2k 10.0 :t-back-ambient-c 30.0 :h-back-w-m2k 10.0
+            :threshold-c 70.0 :duration-s 3600.0 :nodes 11}
+   :sweep {:param :q-gen-w-m3 :values [20000.0 50000.0 100000.0 200000.0 400000.0]}
+   :quantity :final-back-c
+   :limit {:max 70.0 :basis "estimate: a face 40 C above the 30 C panel air treated as 'repair now'; the thermography acceptance criterion the contractor follows (e.g. a NETA-type delta-T table) is the source to cite"}
+   :boundary {:lo 5000.0 :hi 1000000.0}}]}
