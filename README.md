@@ -47,7 +47,7 @@ See [`docs/business-model.md`](docs/business-model.md) and
 
 ## Reference implementation
 
-`src/electrical_practice/{store,governor}.cljc` is a minimal but real
+`src/electrical_practice/{store,governor,facts}.cljk` is a minimal but real
 implementation of the Core Contract above (pure cljc, no external deps):
 
 - `electrical-practice.store` — `Store` protocol + `MemStore`:
@@ -61,9 +61,18 @@ implementation of the Core Contract above (pure cljc, no external deps):
   `is-live-work?` job always requires `:high`+ safety-class and thus
   `:human-approval` — it can never be auto-approved; low-confidence
   proposals also escalate.
+- `electrical-practice.facts` — the rule the governor quotes rather than
+  recalls: 労働安全衛生規則 第339条 第1項第1号 (e-Gov 法令 API,
+  <https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032>). Work on a
+  de-energized job (`is-live-work?` false, any kind but `:permit`) is held
+  unless the proposal names how the opened switch is held open —
+  `:isolation` `:lock` (施錠), `:tag` (通電禁止の表示) or `:watch` (監視人).
+  The hold carries the regulation's `:source-url`. 二号 (residual charge) and
+  三号 (high-voltage detection + grounding) are not enforced: the store has
+  no circuit class yet.
 
 ```bash
-kbb -M:test   # 7 tests, 12 assertions, green
+kbb -M:test   # 13 tests, 26 assertions, green
 ```
 
 This repo's own `blueprint.edn` currently declares `:itonami.blueprint/maturity

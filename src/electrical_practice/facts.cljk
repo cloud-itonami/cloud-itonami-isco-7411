@@ -1,0 +1,34 @@
+(ns electrical-practice.facts
+  "Disclosed facts the Electrical Practice Governor enforces — each one
+  quoted verbatim from a fetched primary source, never recalled.
+
+  Source: 労働安全衛生規則（昭和四十七年労働省令第三十二号）第三百三十九条
+  （停電作業を行なう場合の措置）, as served by the e-Gov 法令 API.
+
+  Provenance (2026-09-25): GET of `regulation-url` returned 200,
+  text/xml;charset=UTF-8, 10,426,303 bytes, sha256
+  55991b3e8d54274a75dbc491eae1c8967248cc2eac5588b14cae65979750fe36, with
+  `<LawTitle>労働安全衛生規則` and `<LawNum>昭和四十七年労働省令第三十二号`. Each
+  `:source-quote` is the text of `<Article Num=\"339\">` with tags stripped.
+
+  What is NOT here: 第一項 二号 (discharging residual charge) and 三号
+  (voltage-detector check + short-circuit grounding for 高圧/特別高圧) need a
+  job's circuit class, which `electrical-practice.store` does not record yet;
+  they are not enforced, so they are not quoted as if they were.")
+
+(def regulation-url
+  "https://laws.e-gov.go.jp/api/1/lawdata/347M50002000032")
+
+(def scope
+  {:source-url regulation-url
+   :section "第三百三十九条 第一項 柱書"
+   :source-quote "事業者は、電路を開路して、当該電路又はその支持物の敷設、点検、修理、塗装等の電気工事の作業を行なうときは、当該電路を開路した後に、当該電路について、次に定める措置を講じなければならない。"})
+
+(def isolate-the-opened-switch
+  "The hard rule: work on an opened (de-energized) circuit states which of
+  the three measures holds the switch used to open it."
+  {:source-url regulation-url
+   :section "第三百三十九条 第一項 第一号"
+   :source-quote "開路に用いた開閉器に、作業中、施錠し、若しくは通電禁止に関する所要事項を表示し、又は監視人を置くこと。"
+   ;; 施錠 / 通電禁止に関する所要事項を表示 / 監視人を置く — any one suffices (若しくは…又は).
+   :measures #{:lock :tag :watch}})
