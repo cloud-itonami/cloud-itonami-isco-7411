@@ -23,9 +23,15 @@
     3. Live-work safety  — any proposal on a job with `is-live-work?`
        true always requires :high or higher safety-class, forcing human
        sign-off; it is never auto-approved regardless of confidence.
+    4. Isolated switch   — work (any kind but :permit) on a de-energized
+       job (`is-live-work?` false) must state `:isolation`, one of
+       施錠 / 通電禁止の表示 / 監視人 (`:lock` `:tag` `:watch`); an unstated
+       or unknown measure is held. Quoted from 労働安全衛生規則 第339条
+       第1項第1号, see `electrical-practice.facts/isolate-the-opened-switch`.
   SOFT:
-    4. Confidence floor → escalate."
-  (:require [electrical-practice.store :as store]))
+    5. Confidence floor → escalate."
+  (:require [electrical-practice.facts :as facts]
+            [electrical-practice.store :as store]))
 
 (def confidence-floor 0.6)
 (def safety-classes [:none :low :medium :high :safety-critical])
@@ -33,6 +39,12 @@
 (defn- safety-rank [safety-class]
   (let [idx (.indexOf safety-classes safety-class)]
     (if (neg? idx) 0 idx)))
+
+(defn- de-energized-without-isolation? [found-job {:keys [kind isolation]}]
+  (and found-job
+       (false? (:is-live-work? found-job))
+       (not= :permit kind)
+       (not (contains? (:measures facts/isolate-the-opened-switch) isolation))))
 
 (defn- hard-violations [{:keys [job-fn]} proposal]
   (let [{:keys [job-id safety-class effect]} proposal
@@ -47,7 +59,13 @@
       (and found-job (:is-live-work? found-job)
            (< (safety-rank (or safety-class :none)) (safety-rank :high)))
       (conj {:rule :live-work-safety
-             :detail "is-live-work? な job への操作は :high 以上の safety-class が必須"}))))
+             :detail "is-live-work? な job への操作は :high 以上の safety-class が必須"})
+
+      (de-energized-without-isolation? found-job proposal)
+      (conj {:rule :de-energized-without-isolation
+             :detail (str "開路に用いた開閉器の施錠・表示・監視人のいずれかを明示する（isolation "
+                          (pr-str (:isolation proposal)) "）")
+             :source-url (:source-url facts/isolate-the-opened-switch)}))))
 
 (defn assess
   "Assess a proposal against `env` (a map with `:job-fn` lookup,

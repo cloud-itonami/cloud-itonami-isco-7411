@@ -1,5 +1,6 @@
 (ns electrical-practice.governor-test
   (:require [kotoba.test :refer [deftest is testing]]
+            [electrical-practice.facts :as facts]
             [electrical-practice.store :as store]
             [electrical-practice.governor :as governor]))
 
@@ -13,7 +14,7 @@
   (let [st (fresh-store)
         env (governor/env-for-store st)
         proposal {:kind :circuit-test :job-id "job-1" :safety-class :low
-                   :effect :propose :confidence 0.9}]
+                   :effect :propose :confidence 0.9 :isolation :lock}]
     (is (= :proceed (:decision (governor/assess env proposal))))))
 
 (deftest holds-on-unregistered-job
@@ -54,7 +55,7 @@
   (let [st (fresh-store)
         env (governor/env-for-store st)
         proposal {:kind :circuit-test :job-id "job-1" :safety-class :none
-                   :effect :propose :confidence 0.2}
+                   :effect :propose :confidence 0.2 :isolation :lock}
         result (governor/assess env proposal)]
     (is (= :human-approval (:decision result)))
     (is (= :low-confidence (:reason result)))))
@@ -73,9 +74,49 @@
             0.0 既定で、うち isco-5419 はそれを明示的にテストしている。"
     (let [st (fresh-store)
           env (governor/env-for-store st)
-          proposal {:kind :circuit-test :job-id "job-1" :safety-class :low :effect :propose}
+          proposal {:kind :circuit-test :job-id "job-1" :safety-class :low :effect :propose
+                    :isolation :lock}
           result (governor/assess env proposal)]
       (is (= 0.0 (:confidence result))
           "欠落した :confidence は 0.0 であって 1.0 ではない")
       (is (not= :proceed (:decision result))
           "確信度不明の提案が自動で通ってはならない"))))
+
+;; -- 労働安全衛生規則 第339条 第1項第1号 (electrical-practice.facts) ----------
+
+(defn- dead-work [isolation]
+  (cond-> {:kind :circuit-test :job-id "job-1" :safety-class :low
+           :effect :propose :confidence 0.95}
+    isolation (assoc :isolation isolation)))
+
+(deftest holds-de-energized-work-that-names-no-isolation
+  (testing "開路した電路の作業で、開閉器の施錠・表示・監視人を言わない提案は確信度が高くても :hold"
+    (let [env (governor/env-for-store (fresh-store))
+          result (governor/assess env (dead-work nil))
+          v (first (:violations result))]
+      (is (= :hold (:decision result)))
+      (is (= [:de-energized-without-isolation] (mapv :rule (:violations result))))
+      (is (= facts/regulation-url (:source-url v))))))
+
+(deftest holds-de-energized-work-with-an-unknown-isolation
+  (testing "第1号が挙げる 3 措置以外（例: :none）は措置を講じたことにならない"
+    (let [env (governor/env-for-store (fresh-store))]
+      (is (= :hold (:decision (governor/assess env (dead-work :none))))))))
+
+(deftest each-measure-the-regulation-names-suffices
+  (testing "施錠 / 通電禁止の表示 / 監視人 はどれか 1 つで足りる（若しくは…又は）"
+    (let [env (governor/env-for-store (fresh-store))]
+      (doseq [m [:lock :tag :watch]]
+        (is (= :proceed (:decision (governor/assess env (dead-work m))))
+            (str m))))))
+
+(deftest a-permit-on-a-de-energized-job-is-not-electrical-work
+  (let [env (governor/env-for-store (fresh-store))
+        result (governor/assess env {:kind :permit :job-id "job-1" :safety-class :low
+                                     :effect :propose :confidence 0.9})]
+    (is (= :proceed (:decision result)))))
+
+(deftest every-enforced-fact-carries-its-primary-source
+  (doseq [f [facts/scope facts/isolate-the-opened-switch]]
+    (is (= facts/regulation-url (:source-url f)))
+    (is (seq (:source-quote f)))))
